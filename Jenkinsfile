@@ -1,9 +1,8 @@
-
 pipeline {
   agent any
 
   environment {
-    APP_ID = "C8rM00NTjEHi57_pee4g1" 
+    APP_ID = "C8rM00NTjEHi57_pee4g1"
   }
 
   parameters {
@@ -21,25 +20,32 @@ pipeline {
 
     stage('Setup .env') {
       steps {
-        sh "echo 'VITE_CANDIDATES_ENDPOINT=${params.VITE_CANDIDATES_ENDPOINT}' > .env"
-        sh 'echo ".env created with VITE_CANDIDATES_ENDPOINT"'
+        script {
+          sh """
+            echo "VITE_CANDIDATES_ENDPOINT=${params.VITE_CANDIDATES_ENDPOINT}" > .env
+            echo ".env created with VITE_CANDIDATES_ENDPOINT"
+          """
+        }
       }
     }
 
     stage('Install dependencies') {
       steps {
-        sh 'node -v && npm --version && (npm ci || npm install)'
+        sh '''
+          node -v
+          npm --version
+          npm ci || npm install
+        '''
       }
     }
-
-    // Skipping explicit install of test libraries because they are already in devDependencies
 
     stage('Run tests') {
       steps {
-        sh 'npm test -- --run'
+        sh 'npm test'
       }
     }
-  }  
+  }
+
   post {
     success {
       echo "✅ Tests passed, triggering deployment API..."
@@ -55,19 +61,18 @@ pipeline {
             -H 'Content-Type: application/json' \
             -H "x-api-key: $DEPLOY_KEY" \
             --data-binary "$json_payload" \
-            -w "\nHTTP %{http_code}\n"
+            -w "\\nHTTP %{http_code}\\n"
         '''
       }
-      // Send success email notification
       mail to: 'xaioene@gmail.com',
            subject: "Jenkins Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
            body: """Hello,
 
 The Jenkins pipeline for ${env.JOB_NAME} (build #${env.BUILD_NUMBER}) has succeeded.
 
-* Branch: ${env.BRANCH_NAME}
-* Commit: ${env.GIT_COMMIT}
-* Build URL: ${env.BUILD_URL}
+- Branch: ${env.BRANCH_NAME}
+- Commit: ${env.GIT_COMMIT}
+- Build URL: ${env.BUILD_URL}
 
 Deployment API was triggered successfully.
 
@@ -84,9 +89,9 @@ Jenkins
 
 The Jenkins pipeline for ${env.JOB_NAME} (build #${env.BUILD_NUMBER}) has failed.
 
-* Branch: ${env.BRANCH_NAME}
-* Commit: ${env.GIT_COMMIT}
-* Build URL: ${env.BUILD_URL}
+- Branch: ${env.BRANCH_NAME}
+- Commit: ${env.GIT_COMMIT}
+- Build URL: ${env.BUILD_URL}
 
 Please check the console output for details.
 
